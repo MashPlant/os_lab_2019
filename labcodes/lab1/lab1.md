@@ -3,36 +3,42 @@
 
 ## 练习1：理解通过make生成执行文件的过程
 ### 1. 操作系统镜像文件ucore.img是如何一步一步生成的？(需要比较详细地解释Makefile中每一条相关命令和命令参数的含义，以及说明命令导致的结果)
-  查看makefile中ucore.img的依赖
-  ```
+查看makefile中ucore.img的依赖
+```
   $(UCOREIMG): $(kernel) $(bootblock)
-	$(V)dd if=/dev/zero of=$@ count=10000
-	$(V)dd if=$(bootblock) of=$@ conv=notrunc
-	$(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
-  ```
-  可见ucore.img依赖于kernel和bootblock；这二者生成后，用dd命令先创建一个块数目为10000，每个块大小为512字节的ucore.img文件，然后将bootblock拷贝到它的第一个块，讲kernel拷贝到它的后续的块(跳过了第一个块)
-  1. kernel
-    分为编译和链接两个过程，编译过程分别调用gcc编译了kern文件夹下的.c和.S文件，使用了一些不常见的编译选项`-fno-builtin -Wall -ggdb -m32 -gstabs -nostdinc -fno-stack-protector`
-      - `-fno-builtin`没有查到gcc的文档...只查到了clang的文档，"Disable implicit builtin knowledge of functions"，意思应该是禁止隐式地调用builtin函数/指令(来优化)
-      - `-m32`编译产物兼容32位
-      - `-gstabs`生成stabs格式的调试信息
-      - `-nostdinc`不使用C标准库，这可能是因为C标准库内包含很多系统调用，我们的os不一定都实现了，因此在我们的os中自己写了一部分C标准库的函数以供使用
-      - `-fno-stack-protector`不在栈上放置额外的保护信息(它们可以用来检查栈内存访问越界)，这可能是因为lab1中需要打印函数的堆栈信息，额外的保护信息可能使得函数堆栈发生变化
-    链接过程就是把以上生成的.o文件链接成kernel文件，使用了链接选项`-m elf_i386 -nostdlib -T tools/kernel.ld`
-      - `-m elf_i386`生成elf_i386格式的可执行文件
-      - `nostdlib`不链接C标准库
-      - `-T tools/kernel.ld`使用链接脚本kernel.ld
-  2. bootblock
-    分为编译，链接，签名三个部分。编译即把bootasm.S和bootmain.c编译成对应的.o文件，链接即把这两个.o文件链接成bootblock.o。
-    
-    签名需先调用`objcopy -S -O binary obj/bootblock.o obj/bootblock.out`拷贝二进制代码bootblock.o到bootblock.out。其中`-S`意义为移除符号和重定位信息，`-O binary`意义为输出二进制个数。我认为这个过程的作用类似与对bootblock.o的链接，使其成为可执行文件。
+  $(V)dd if=/dev/zero of=$@ count=10000
+  $(V)dd if=$(bootblock) of=$@ conv=notrunc
+  $(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
+```
+可见ucore.img依赖于kernel和bootblock；这二者生成后，用dd命令先创建一个块数目为10000，每个块大小为512字节的ucore.img文件，然后将bootblock拷贝到它的第一个块，讲kernel拷贝到它的后续的块(跳过了第一个块)
+1. kernel
 
-    然后编译链接工具sign，然后使用sign校验bootblock.out并在输出文件的511，512两个字节上写入0x55AA，从而使其成为符合规范的主引导扇区。
+分为编译和链接两个过程，编译过程分别调用gcc编译了kern文件夹下的.c和.S文件，使用了一些不常见的编译选项`-fno-builtin -Wall -ggdb -m32 -gstabs -nostdinc -fno-stack-protector`
+   - `-fno-builtin`没有查到gcc的文档...只查到了clang的文档，"Disable implicit builtin knowledge of functions"，意思应该是禁止隐式地调用builtin函数/指令(来优化)
+   - `-m32`编译产物兼容32位，这是因为intel 80386机器为32位机器(我比较意外除此以外就不用再指定其他与架构相关的信息了，看来intel的向下兼容的确做的很好)
+   - `-gstabs`生成stabs格式的调试信息
+   - `-nostdinc`不使用C标准库，这可能是因为C标准库内包含很多系统调用，目前的os基本都还没有实现；我们的os中自己写了一部分C标准库的函数以供使用
+   - `-fno-stack-protector`不在栈上放置额外的保护信息(它们可以用来检查栈内存访问越界)，这可能是因为lab1中需要打印函数的堆栈信息，额外的保护信息可能使得函数堆栈发生变化
+    
+链接过程就是把以上生成的.o文件链接成kernel文件，使用了链接选项`-m elf_i386 -nostdlib -T tools/kernel.ld`
+   - `-m elf_i386`生成elf_i386格式的可执行文件
+   - `nostdlib`不链接C标准库
+   - `-T tools/kernel.ld`使用链接脚本kernel.ld
+
+2. bootblock
+
+分为编译，链接，签名三个部分。编译即把bootasm.S和bootmain.c编译成对应的.o文件，链接即把这两个.o文件链接成bootblock.o。
+    
+签名需先调用`objcopy -S -O binary obj/bootblock.o obj/bootblock.out`拷贝二进制代码bootblock.o到bootblock.out。其中`-S`意义为移除符号和重定位信息，`-O binary`意义为输出二进制个数。我认为这个过程的作用类似与对bootblock.o的链接，使其成为可执行文件。
+
+然后编译链接工具sign，然后使用sign校验bootblock.out并在输出文件的511，512两个字节上写入0x55AA，从而使其成为符合规范的主引导扇区。
    
 ### 2. 一个被系统认为是符合规范的硬盘主引导扇区的特征是什么？
-  对于sign工具来说，只要求可执行文件的大小不大于510bytes，它就可以被装入硬盘主引导扇区(不同于原理课上讲的446bytes，因为ucore的bootloader不包含分区信息，可以使用除了最后两个字节之外的所有字节)；在511，512两个字节加上0x55AA后，它就是一个“符合规范”的硬盘主引导扇区。
+符合规范的硬盘主引导扇区指的是大小为512bytes，且最后两个字节为0x55AA的一个硬盘扇区。
 
-  当然，“符合规范”的硬盘主引导扇区不一定就是“合格”的硬盘主引导扇区。运行时，“合格”的硬盘主引导扇区还应该能正确地执行加载os等工作，但是这在运行前并没有被验证过。
+对于sign工具来说，只要求可执行文件的大小不大于510bytes，它就可以被装入硬盘主引导扇区(不同于课上讲的446bytes，因为ucore的bootloader不包含分区信息，可以使用除了最后两个字节之外的所有字节)；在511，512两个字节加上0x55AA后，它就是一个符合规范的硬盘主引导扇区。
+
+当然，“符合规范”的硬盘主引导扇区不一定就是“合格”的硬盘主引导扇区。运行时，“合格”的硬盘主引导扇区还应该能正确地执行加载os等工作，但是这在运行前并没有被验证过。
 
 ## 练习2. 使用qemu执行并调试lab1中的软件
 ### 1. 从CPU加电后执行的第一条指令开始，单步跟踪BIOS的执行。
@@ -47,8 +53,7 @@
   0xffff7:     das  
 ```
 
-### 2. 在初始化位置0x7c00设置实地址断点,测试断点正常。
-### 3. 从0x7c00开始跟踪代码运行,将单步跟踪反汇编得到的代码与bootasm.S和 bootblock.asm进行比较。
+### 2. 在初始化位置0x7c00设置实地址断点,测试断点正常。& 3. 从0x7c00开始跟踪代码运行,将单步跟踪反汇编得到的代码与bootasm.S和 bootblock.asm进行比较。
 将gdbinit文件修改成 
 ```
 set architecture i8086 # 将gdb状态设置为i8086实模式，符合bootloader一开始的执行状态
@@ -79,7 +84,7 @@ c
    0x7c22:      jl     0x7c33
    0x7c24:      and    %al,%al
 ```
-可见这一段汇编代码与bootasm.S中的代码(在语义上)是相同的(区别仅在于mov和movw之类的)
+可见这一段汇编代码与bootasm.S中的代码在语义上是相同的(区别仅在于mov和movw之类的)
 
 ### 4. 自己找一个bootloader或内核中的代码位置，设置断点并进行测试。
 我找了函数cga_init，我选它原因是之前我的环境没有设置好的时候总是在这个地方segment fault...
@@ -88,8 +93,8 @@ c
 ```
 file bin/kernel
 target remote :1234
-break cga_init
-continue
+b cga_init
+c
 ```
 然后执行`make debug`，即可在函数cga_init处停下
 ```c
@@ -177,7 +182,7 @@ seta20.2:
     ljmp $PROT_MODE_CSEG, $protcseg
 ```
 ### 1. 为何开启A20，以及如何开启A20
-为何开启A20：这涉及到历史原因，简单来说就是开启A20之前，当寻址到超过1MB的内存时会发生“回卷”，需要开启A20才能正确访问超过1MB的地址空间。
+为何开启A20：这涉及到历史原因，目前的情况是在开启A20之前，当寻址到超过1MB的内存时会发生“回卷”，需要开启A20才能正确访问超过1MB的地址空间。
 
 如何开启A20：需要通过向键盘控制器8042发送一个命令来完成。键盘控制器8042将会将它的的某个输出引脚的输出置高电平，作为A20地址线控制的输入。因为还要考虑到键盘缓冲区中是否有内容，键盘控制器是否已准备好等情况，所以汇编代码比较复杂。其流程为
 1. 等待，直到8042 Input buffer为空为止
@@ -269,7 +274,8 @@ readseg从硬盘的offset处读取连续的count个字节放入地址va处；代
 ```c
 void
 bootmain(void) {
-    // 读取ELF的头部，实际上需要读取的内容大于sizeof(elfhdr)，这从ph指针的行为可以看出
+    // 读取ELF的头部，实际上需要读取的内容大于sizeof(elfhdr)(但还是都读取到了指针ELFHDR处)，这从ph指针的行为可以看出
+    // 这个技巧与柔性数组原理一样，在C编程中还是比较常见的
     readseg((uintptr_t)ELFHDR, SECTSIZE * 8, 0);
 
     // 检查magic number，判断是否合法
@@ -291,7 +297,8 @@ bootmain(void) {
         readseg(ph->p_va & 0xFFFFFF, ph->p_memsz, ph->p_offset);
     }
 
-    // 这一跳会转到init.c中的kern_init函数
+    // 这一跳会转到init.c中的kern_init函数，这个函数永远不会返回
+    // 似乎可以在函数指针的类型中加入noreturn之类的来帮助编译器优化
     ((void (*)(void))(ELFHDR->e_entry & 0xFFFFFF))();
 
 bad:
@@ -324,7 +331,7 @@ for (i = 0; i < STACKFRAME_DEPTH && ebp; ++i) {
     ebp = ptr[0];
 }
 ```
-(本平台下)c函数的调用约定是，调用方将参数从右向左进栈，然后调用call，call基本相当于`push eip + jmp func`；之后被调方调用`push ebp + mov esp ebp`
+(本平台下)c函数的调用约定是，调用方将参数从右向左进栈，然后调用call，call基本相当于`push eip + jmp func`；之后被调方调用`push ebp + mov esp -> ebp`
 
 根据调用约定，我在注释中标注出了我设想的栈的样子
 
@@ -351,10 +358,8 @@ ebp:0x00007bf8 eip:0x00007d68 args:0xc031fcfa 0xc08ed88e 0x64e4d08e 0xfa7502a8
 0x7d66:      call   *%eax
 0x7d68:      mov    $0xffff8a00,%edx
 ```
-gdb中输入`info all-register`，查看ebp的数值，得到
-```
-ebp  0x7bf8
-```
+gdb中输入`info all-register`，查看ebp的数值，得到`ebp  0x7bf8`
+
 至此可以对各个数字解释如下
 1. ebp是bootmain的ebp
 2. eip是指令`0x7d68:      mov    $0xffff8a00,%edx`
@@ -365,3 +370,108 @@ ebp  0x7bf8
 ### 中断向量表中一个表项占多少字节？其中哪几位代表中断处理代码的入口？
 
 一个中断描述符占用8bytes(64bits)，其中[16, 31]bit是段选择子，[0, 15]字节和[48, 63]字节拼成位移，利用段选择子和段内位移便得到中断处理程序的入口地址。
+
+## 扩展练习 Challenge 1. 增加一用户态函数，当内核初始完毕后，可从内核态返回到用户态的函数，而用户态的函数又通过系统调用得到内核态的服务
+任务的本质在于
+1. 从内核态主动切换到用户态
+2. 从用户态切换到内核态，并留在内核态
+
+首先记录一下我对`struct trapframe`的填充过程的分析。注意由于栈是从上往下生长的，而结构体中成员的地址是递增的，所以结构体的填充是从后往前的
+1. 产生中断，硬件负责依次填写`ss esp eflags cs eip`(u2k)或者`eflags cs eip`(k2k)
+2. 进入isr，即__vector0~255，它们负责依次填写`err trapno`，其中err大部分都是0，代表没有错误；trapno都是此vector的下标
+3. vector调用__alltraps，它先依次填写`ds es fs gs`，再调用`pushal`依次填写`eax, ecx, edx, ebx, original esp, ebp, esi, edi`
+
+至此，整个`struct trapframe`从后往前填充完毕，栈顶指针指向它的首地址，用C来表示就是`&tf.tf_regs.reg_edi`，执行`push esp, call trap`就把`struct trapframe`的首地址作为参数，调用了函数`trap`。
+
+`trap`返回之后，执行了一行`popl %esp`，这是不太正常的，如果是普通的函数，这里可能是`add $4, %esp`之类的来除掉栈上的`tf`参数，但是这里是**把`tf`指向的地址作为了新的栈**，一般而言tf作为函数参数是不会被函数内部改变的，但是利用上面的分析容易知道，对`((uint32_t *)tf)[-1]`的访问即是对`tf`的访问，所以在函数内部是可以修改`tf`的，如果把它设置为新的栈的位置，那么`popl %esp`就会把栈设置成新的栈。
+
+之后，假定这个栈上也有一个`struct trapframe`，此时执行
+```asm
+    # restore registers from stack
+    popal
+
+    # restore %ds, %es, %fs and %gs
+    popl %gs
+    popl %fs
+    popl %es
+    popl %ds
+```
+就把它保存的信息依次恢复到了对应寄存器中。
+
+^^^^^^^注：以上修改`((uint32_t *)tf)[-1]`的做法思路来自于答案，最后并没有用到^^^^^^^
+
+原先我认为从`lab1_switch_test`中内核态切换到用户态后是执行在了一个不同的栈上，经过和助教的交流我理解了实际上除了`lab1_switch_to_kernel`外都没有切换栈，`lab1_switch_to_kernel`也只是临时地切换到了`pmm.c::stack0`中的栈上，之后又回到`lab1_switch_test`的函数栈上了。
+
+下面讲实现思路
+1. 从内核态主动切换到用户态
+思路是用内核态模拟一次用户态的中断，于是在`iret`之后就会进入用户态。
+
+由于这里是在内核态发生中断，因此硬件不会压入`ss esp`，为了模拟用户态的行为，在产生中断之前先手动压入用户态的`ss`和`esp`，这个压入的`esp`就是isr结束之后的`esp`用于恢复的值，我们希望它就是本函数的`ebp`(因为这个函数没有栈上变量)，所以压入`esp`对应于`pushl %%ebp`。
+
+然后在内核态执行一次`int T_SWITCH_TOU`，在`trap_dispatch`中将`tf`的`cs ds es`修改为user状态的段寄存器即可，无需修改`ss esp`，因为中断之前已经做了处理。除此之外，为了能正确输出还要设置`tf`的IO优先级，这一句代码参考了答案。
+
+代码如下
+```c
+static void
+lab1_switch_to_user(void) {
+    //LAB1 CHALLENGE 1 : TODO
+    asm volatile (
+        "pushl %0\n\t"
+        "pushl %%ebp\n\t"
+	    "int %1\n\t"
+	    :: "i"(USER_DS), "i"(T_SWITCH_TOU)
+	);
+}
+
+static void
+trap_dispatch(struct trapframe *tf) {
+...
+    case T_SWITCH_TOU: {
+        tf->tf_cs = USER_CS;
+        tf->tf_ds = tf->tf_es = /* tf->tf_ss = already set in init.c::lab1_switch_to_user */ USER_DS;
+        tf->tf_eflags |= FL_IOPL_MASK;
+        break;
+    }
+...
+}
+```
+
+1. 从用户态切换到内核态，并留在内核态
+首先需要设置一个用户态可以使用的中断，然后在内核态执行一次`int T_SWITCH_TOK`，在`trap_dispatch`中将`tf`的`cs ds es ss`修改为kernel状态的段寄存器，再恢复`tf`的IO优先级即可。
+
+从中断返回后，此时的`esp`仍然在`TSS`指定的内核栈上(`kern_init`的函数栈和`pmm.c::stack0`都是内核栈，后者被`TSS`设置为了处理中断的栈)。此时同1之理，只需要`movl %%ebp, %%esp`即可正确设置`esp`。
+
+代码如下
+```c
+void
+idt_init(void) {
+...
+    // for challenge 1 step2(from use to kernel), allow DPL_USER use gate T_SWITCH_TOK
+    // this gate is a trap
+    // 出错（fault）保存的EIP指向触发异常的那条指令；而陷入（trap）保存的EIP指向触发异常的那条指令的下一条指令。因此，当从异常返回时，出错（fault）会重新执行那条指令；而陷入（trap）就不会重新执行
+    SETGATE(idt[T_SWITCH_TOK], 1, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
+...
+}
+
+static void
+lab1_switch_to_kernel(void) {
+    //LAB1 CHALLENGE 1 :  TODO
+	asm volatile (
+	    "int %0 \n"
+	    "movl %%ebp, %%esp \n"
+	    :: "i"(T_SWITCH_TOK)
+	);
+}
+
+static void
+trap_dispatch(struct trapframe *tf) {
+...
+    case T_SWITCH_TOK: {
+        tf->tf_cs = KERNEL_CS;
+        tf->tf_ds = tf->tf_es = tf->tf_ss = KERNEL_DS;
+        tf->tf_eflags &= ~FL_IOPL_MASK;
+        break;
+    }
+...
+}
+```

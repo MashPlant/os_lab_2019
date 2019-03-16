@@ -218,15 +218,15 @@ qemu-nox: $(UCOREIMG)
 TERMINAL        :=konsole
 debug: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
-	$(V)sleep 2
+	$(V)sleep 1
 	$(V)$(TERMINAL) -e "gdb -q -tui -x tools/gdbinit"
 debug-notui: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
-	$(V)sleep 2
+	$(V)sleep 1
 	$(V)$(TERMINAL) -e "gdb -q -x tools/gdbinit"		
 debug-nox: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -serial mon:stdio -hda $< -nographic &
-	$(V)sleep 2
+	$(V)sleep 1
 	$(V)$(TERMINAL) -e "gdb -q -x tools/gdbinit"
 
 .PHONY: grade touch

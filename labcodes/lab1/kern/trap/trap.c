@@ -49,10 +49,13 @@ idt_init(void) {
     extern uintptr_t __vectors[];
     int i;
     for (i = 0; i < 256; ++i) {
-        // GD_KTEXT is the global descrptor for global text
+        // GD_KTEXT is the segment selector for global text(isr table is in global text)
         SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
     }
-	// load idt
+    // for challenge 1 step2(from use to kernel), allow DPL_USER use gate T_SWITCH_TOK
+    // this gate is a trap
+    // 出错（fault）保存的EIP指向触发异常的那条指令；而陷入（trap）保存的EIP指向触发异常的那条指令的下一条指令。因此，当从异常返回时，出错（fault）会重新执行那条指令；而陷入（trap）就不会重新执行
+    SETGATE(idt[T_SWITCH_TOK], 1, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
     lidt(&idt_pd);
 }
 
@@ -142,6 +145,9 @@ print_regs(struct pushregs *regs) {
     cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
 
+// struct trapframe k2u; // will also be user STACK
+// struct trapframe switchk2u, *switchu2k;
+
 /* trap_dispatch - dispatch based on what type of trap occurred */
 static void
 trap_dispatch(struct trapframe *tf) {
@@ -168,10 +174,18 @@ trap_dispatch(struct trapframe *tf) {
         cprintf("kbd [%03d] %c\n", c, c);
         break;
     //LAB1 CHALLENGE 1 : YOUR CODE you should modify below codes.
-    case T_SWITCH_TOU:
-    case T_SWITCH_TOK:
-        panic("T_SWITCH_** ??\n");
+    case T_SWITCH_TOU: {
+        tf->tf_cs = USER_CS;
+        tf->tf_ds = tf->tf_es = /* tf->tf_ss = already set in init.c::lab1_switch_to_user */ USER_DS;
+        tf->tf_eflags |= FL_IOPL_MASK;
         break;
+    }
+    case T_SWITCH_TOK: {
+        tf->tf_cs = KERNEL_CS;
+        tf->tf_ds = tf->tf_es = tf->tf_ss = KERNEL_DS;
+        tf->tf_eflags &= ~FL_IOPL_MASK;
+        break;
+    }
     case IRQ_OFFSET + IRQ_IDE1:
     case IRQ_OFFSET + IRQ_IDE2:
         /* do nothing */
