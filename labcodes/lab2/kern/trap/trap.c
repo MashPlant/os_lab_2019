@@ -173,9 +173,7 @@ trap_dispatch(struct trapframe *tf) {
     //LAB1 CHALLENGE 1 : 2017011466 you should modify below codes.
     case T_SWITCH_TOU: {
         tf->tf_cs = USER_CS;
-        tf->tf_ds = tf->tf_es = tf->tf_ss = USER_DS;
-        // tf->tf_ds = tf->tf_es = /* tf->tf_ss = already set in init.c::lab1_switch_to_user */ USER_DS;
-        
+        tf->tf_ds = tf->tf_es = /* tf->tf_ss = already set in init.c::lab1_switch_to_user */ USER_DS;
         tf->tf_eflags |= FL_IOPL_MASK;
         break;
     }
