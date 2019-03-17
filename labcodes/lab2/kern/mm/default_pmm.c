@@ -12,7 +12,7 @@
  *  Please refer to Page 196~198, Section 8.2 of Yan Wei Min's Chinese book
  * "Data Structure -- C programming language".
 */
-// LAB2 EXERCISE 1: YOUR CODE
+// LAB2 EXERCISE 1: 2017011466
 // you should rewrite functions: `default_init`, `default_init_memmap`,
 // `default_alloc_pages`, `default_free_pages`.
 /*
@@ -135,16 +135,15 @@ default_alloc_pages(size_t n) {
         }
     }
     if (page != NULL) {
-        list_del(&(page->page_link));        
-        ClearPageProperty(page);
+        list_del(&(page->page_link));
         if (page->property > n) {
             struct Page *p = page + n;
             SetPageProperty(p);
             p->property = page->property - n;
-            // add after page's prev, still maintain old place
-            list_add_after(page->page_link.prev, &(p->page_link));
+            list_add_before(page->page_link.next, &(p->page_link));
         }
         nr_free -= n;
+        ClearPageProperty(page);
     }
     return page;
 }
@@ -177,7 +176,20 @@ default_free_pages(struct Page *base, size_t n) {
         }
     }
     nr_free += n;
-    list_add_before(&free_list, &(base->page_link));
+    if (base < le2page(list_next(&free_list), page_link)) {
+        list_add_after(&free_list, &(base->page_link));
+    } else if (base > le2page(list_prev(&free_list), page_link)) {
+        list_add_before(&free_list, &(base->page_link));
+    } else {
+        le = list_next(&free_list);
+        while ((le = list_next(le)) != &free_list) {
+            struct Page *p = le2page(le, page_link);
+            if (p < base && base < le2page(list_next(le), page_link)) {
+                list_add_after(&(p->page_link), &(base->page_link));
+                break;
+            }
+        }
+    }
 }
 
 static size_t
