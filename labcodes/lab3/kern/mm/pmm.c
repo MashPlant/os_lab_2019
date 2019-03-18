@@ -364,6 +364,7 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
     if (!(*pdep & PTE_P)) {                          // (2) check if entry is not present
         if (!create) { return NULL; }                // (3) check if creating is needed
         struct Page *page = alloc_page();            // then alloc page for page table CAUTION: this page is used for page table, not for common data page
+        if (page == NULL) { return NULL; }
         set_page_ref(page, 1);                       // (4) set page reference
         uintptr_t pa = page2pa(page);                // (5) get linear address of page
         memset(KADDR(pa), 0, PGSIZE);                // (6) clear page content using memset

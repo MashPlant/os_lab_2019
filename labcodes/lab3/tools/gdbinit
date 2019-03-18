@@ -1,5 +1,4 @@
 file bin/kernel
 target remote :1234
-b vmm.c:385
-b swap.c:44
+b trap.c:166
 c
