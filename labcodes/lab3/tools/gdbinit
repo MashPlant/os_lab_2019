@@ -1,3 +1,5 @@
 file bin/kernel
 target remote :1234
-break kern_init
+b vmm.c:385
+b swap.c:44
+c

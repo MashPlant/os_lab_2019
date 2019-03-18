@@ -412,7 +412,7 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
         if (page_ref_dec(page) == 0) {       //(3) decrease page reference
           free_page(page);                   //(4) and free this page when page reference reachs 0
         }
-        *ptep &= ~PTE_P;                     //(5) clear second page table entry
+        *ptep = 0;                           //(5) clear second page table entry
         tlb_invalidate(pgdir, la);           //(6) flush tlb
     }
 }
