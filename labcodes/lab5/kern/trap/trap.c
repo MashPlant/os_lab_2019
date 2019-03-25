@@ -67,6 +67,7 @@ idt_init(void) {
     // this gate is a trap
     // 出错（fault）保存的EIP指向触发异常的那条指令；而陷入（trap）保存的EIP指向触发异常的那条指令的下一条指令。因此，当从异常返回时，出错（fault）会重新执行那条指令；而陷入（trap）就不会重新执行
     SETGATE(idt[T_SWITCH_TOK], 1, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
+    SETGATE(idt[T_SYSCALL], 1, GD_KTEXT, __vectors[T_SYSCALL], DPL_USER);    
     lidt(&idt_pd);
 }
 
@@ -236,7 +237,7 @@ trap_dispatch(struct trapframe *tf) {
          *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
          */
         if (++ticks % TICK_NUM == 0) {
-            print_ticks();
+            // print_ticks();
             current->need_resched = 1;
         }
   
