@@ -15,6 +15,7 @@
 #include <error.h>
 #include <sched.h>
 #include <sync.h>
+#include <proc.h>
 
 #define TICK_NUM 100
 
@@ -59,14 +60,14 @@ idt_init(void) {
         // GD_KTEXT is the segment selector for global text(isr table is in global text)
         SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
     }
+    /* LAB5 2017011466 */ 
+    //you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
+    //so you should setup the syscall interrupt gate in here
     // for challenge 1 step2(from use to kernel), allow DPL_USER use gate T_SWITCH_TOK
     // this gate is a trap
     // 出错（fault）保存的EIP指向触发异常的那条指令；而陷入（trap）保存的EIP指向触发异常的那条指令的下一条指令。因此，当从异常返回时，出错（fault）会重新执行那条指令；而陷入（trap）就不会重新执行
     SETGATE(idt[T_SWITCH_TOK], 1, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
     lidt(&idt_pd);
-    /* LAB5 YOUR CODE */ 
-    //you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
-    //so you should setup the syscall interrupt gate in here
 }
 
 static const char *
@@ -230,13 +231,14 @@ trap_dispatch(struct trapframe *tf) {
          * (2) Every TICK_NUM cycle, you can print some info using a funciton, such as print_ticks().
          * (3) Too Simple? Yes, I think so!
          */
-        if (++ticks % TICK_NUM == 0) {
-            print_ticks();
-        }
-        /* LAB5 YOUR CODE */
+        /* LAB5 2017011466 */
         /* you should upate you lab1 code (just add ONE or TWO lines of code):
          *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
          */
+        if (++ticks % TICK_NUM == 0) {
+            print_ticks();
+            current->need_resched = 1;
+        }
   
         break;
     case IRQ_OFFSET + IRQ_COM1:
