@@ -192,3 +192,51 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
 ### 3. 如果希望虚拟地址与物理地址相等，则需要如何修改lab2？
 1. 将`kernel.ld`中的0xC0100000改为0x100000
 2. 将宏`KERNBASE`定义为0
+3. 修改entry.S
+   1. 修改`__boot_pgdir`，它只需要把0-4M映射到0-4M，所以建立第一个页目录项即可，后面全部留空
+    ```asm
+    .globl __boot_pgdir
+        .long REALLOC(__boot_pt1) + (PTE_P | PTE_U | PTE_W)
+        .space PGSIZE - (. - __boot_pgdir) # pad to PGSIZE
+    ```
+   2. 修改函数`kern_entry`，去掉以下两行代码，因为现在这个0-4M -> 0-4M的映射是永久的，不需要也不能取消掉
+    ```asm
+        xorl %eax, %eax
+        movl %eax, __boot_pgdir
+    ``` 
+    至此，配合后续的C代码，已经达到了对等映射的目的，但是由于有几个测试函数对于虚拟地址空间做了一些假定，例如假定页目录项的第0项是空的，这在现在显然是不正确的，因此一些`assert`无法通过。除此之外，`check_pgdir`函数还先建立了页目录项的第0项又取消掉了映射，而这在现在是不可接受的，因为很多内核代码都在页目录项的第0项对应的地址空间里。
+
+4. 修改函数`pmm_init`，删去以下两个测试函数
+```c
+    check_pgdir();
+    check_boot_pgdir();
+```
+
+至此，已经成功把0-KMEMSIZE映射到0-KMEMSIZE，对比修改前和修改后的部分输出如下：
+
+修改前
+```
+-------------------- BEGIN --------------------
+PDE(0e0) c0000000-f8000000 38000000 urw
+  |-- PTE(38000) c0000000-f8000000 38000000 -rw
+PDE(001) fac00000-fb000000 00400000 -rw
+  |-- PTE(000e0) faf00000-fafe0000 000e0000 urw
+  |-- PTE(00001) fafeb000-fafec000 00001000 -rw
+--------------------- END ---------------------
+++ setup timer interrupts
+100 ticks
+100 ticks
+```
+修改后
+```
+-------------------- BEGIN --------------------
+PDE(0e0) 00000000-38000000 38000000 urw
+  |-- PTE(38000) 00000000-38000000 38000000 -rw
+PDE(001) fac00000-fb000000 00400000 -rw
+  |-- PTE(000e0) fac00000-face0000 000e0000 urw
+  |-- PTE(00001) fafeb000-fafec000 00001000 -rw
+--------------------- END ---------------------
+++ setup timer interrupts
+100 ticks
+100 ticks
+```
