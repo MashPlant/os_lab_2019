@@ -56,4 +56,3 @@ main(void) {
     }
     panic("FAIL: T.T\n");
 }
-
