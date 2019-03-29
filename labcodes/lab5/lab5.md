@@ -146,7 +146,7 @@ sys_fork(uint32_t arg[]) {
 ```
 于是子进程就和父进程从同一位置开始执行。
 
-完成这些工作之后，它唤醒了这个新进程(唤醒实际上就是设定`proc->state`和`proc->wait_state`，让它有机会被`schdule`函数分配到时间片)
+完成这些工作之后，它唤醒了这个新进程(唤醒实际上就是设定`proc->state`和`proc->wait_state`，让它有机会被`schedule`函数分配到时间片)
 
 顺便记录一下我对`fork`对于父进程返回子进程`pid`，而对子进程返回0的原因的分析：
 - 对于父进程，即系统调用的发起者，经过
@@ -217,7 +217,7 @@ __trapret:
 函数`do_execve`已经在上面分析过，这里略过，从用户态执行这个系统调用的主要区别在于，条件`if (mm != NULL) `成立，会执行后面的尝试释放内存的过程。
 
 #### 1.3 wait
-`do_wait`负责等待某个子进程或者任一个子进程，当它进入zombie状态后取出它的返回值并彻底回收这个子进程。如果没有等到，则当前进程进入睡眠，交由`schdule`来调度。
+`do_wait`负责等待某个子进程或者任一个子进程，当它进入zombie状态后取出它的返回值并彻底回收这个子进程。如果没有等到，则当前进程进入睡眠，交由`schedule`来调度。
 
 关键代码分析如下:
 1. 寻找子进程
@@ -309,6 +309,24 @@ __trapret:
 > 请分析fork/exec/wait/exit在实现中是如何影响进程的执行状态的？
 > 
 > 请给出ucore中一个用户态进程的执行状态生命周期图（包执行状态，执行状态之间的变换关系，以及产生变换的事件或函数调用）。（字符方式画即可）
+
+这是`proc.c`中的状态图
+```
+  alloc_proc                                 RUNNING
+      +                                   +--<----<--+
+      +                                   + proc_run +
+      V                                   +-->---->--+ 
+PROC_UNINIT -- proc_init/wakeup_proc --> PROC_RUNNABLE -- try_free_pages/do_wait/do_sleep --> PROC_SLEEPING --
+                                           A      +                                                           +
+                                           |      +--- do_exit --> PROC_ZOMBIE                                +
+                                           +                                                                  + 
+                                           -----------------------wakeup_proc----------------------------------
+```
+关心`fork/exec/wait/exit`的话，状态转移如下(ucore将running和runnable用同一个状态来标记，以下用括号来说明具体状态)：
+- fork：not exist -> runnable(not running)
+- exec：runnable(running) -> another process runnable(maybe running)
+- wait：runnable(running) -> sleeping
+- exit：runnable(running) -> zombie
 
 ### 2. 系统调用的实现
 有两个同名的`syscall`函数，一个位于用户空间，一个位于内核空间，前者的功能是收集参数，执行`int`进入内核态，后者的作用是处理真正处理系统调用。

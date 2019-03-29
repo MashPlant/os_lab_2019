@@ -4,6 +4,7 @@
 #include <sched.h>
 #include <stdio.h>
 #include <assert.h>
+#include <sched.h>
 #include <default_sched.h>
 
 // the list of timer
