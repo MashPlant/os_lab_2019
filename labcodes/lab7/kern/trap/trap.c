@@ -241,13 +241,13 @@ trap_dispatch(struct trapframe *tf) {
          * IMPORTANT FUNCTIONS:
 	     * sched_class_proc_tick
          */
-        /* LAB7 YOUR CODE */
+        /* LAB7 2017011466*/
         /* you should upate you lab6 code
          * IMPORTANT FUNCTIONS:
 	     * run_timer_list
          */
         ++ticks;
-        sched_class_proc_tick(current);
+        run_timer_list();
         break;
     case IRQ_OFFSET + IRQ_COM1:
         c = cons_getc();

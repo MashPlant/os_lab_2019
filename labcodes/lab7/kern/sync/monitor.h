@@ -86,5 +86,5 @@ void     cond_signal (condvar_t *cvp);
 // Suspend calling thread on a condition variable waiting for condition atomically unlock mutex in monitor,
 // and suspends calling thread on conditional variable after waking up locks mutex.
 void     cond_wait (condvar_t *cvp);
-     
+
 #endif /* !__KERN_SYNC_MONITOR_CONDVAR_H__ */
