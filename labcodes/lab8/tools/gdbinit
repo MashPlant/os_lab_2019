@@ -1,3 +1,5 @@
 file bin/kernel
 target remote :1234
-break kern_init
+break proc.c:696
+break proc.c:698
+c
