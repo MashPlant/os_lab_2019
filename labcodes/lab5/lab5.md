@@ -187,7 +187,7 @@ syscall(int num, ...) { // in user
         : "=a" (ret)
         : "i" (T_SYSCALL),
 ...
-        : "cc", "memory");
+        : "cc", "memory"); // cc = condition code register = 状态寄存器 = EFLAGS
     return ret;
 }
 ```

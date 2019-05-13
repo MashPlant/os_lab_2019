@@ -1,4 +1,4 @@
 file bin/kernel
 target remote :1234
-b trapentry.S:27
+b trap.c:155
 c
