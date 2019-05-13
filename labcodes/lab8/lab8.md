@@ -16,7 +16,7 @@ sfs_io_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, void *buf, off_t offset
         sfs_bmap_load_nolock(sfs, sin, blkno, &ino);
         sfs_buf_op(sfs, buf, endpos - offset, ino, offset - blkno * SFS_BLKSIZE);
     } else { // 至少在两个块中
-        // 操作函数中的blkno实际上都是inode编号，与上面的变量blkno并不想等，需要sfs_bmap_load_nolock读出某个block到底是哪个inode
+        // 操作函数中的blkno实际上都是inode编号，与上面的变量blkno并不相等，需要sfs_bmap_load_nolock读出某个block到底是哪个inode
         // 操作起始块
         sfs_bmap_load_nolock(sfs, sin, blkno, &ino);
         sfs_buf_op(sfs, buf, (blkno + 1) * SFS_BLKSIZE - offset, ino, offset - blkno * SFS_BLKSIZE);
@@ -41,7 +41,7 @@ sfs_io_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, void *buf, off_t offset
 这里简单记录一下我对`sfs`文件系统的理解：
 1. 文件和文件夹的"内容"的位置(对于文件，内容是文件本身内容；对于文件夹，内容是一系列`sfs_disk_entry`)都记录在`sfs_disk_inode`中。对于文件夹，每个`sfs_disk_entry`都占用一个inode
 2. `sfs_disk_inode`直接对应硬盘中的实体；`sfs_inode`是内存中的对应概念，在前者基础上增加了一些链接关系和标记便于管理
-3. ucore所谓的抽象竟然是让抽象接口中包含具体实现的union，可以说是相当垃圾了
+3. 虚拟文件系统的抽象是通过虚函数表+(tagged)union来实现的，一般来说在平时的编程中为了实现多态性，都只会使用二者之一，因此这样的实现给我造成了一些困扰
 
 ### Q2. 给出设计实现”UNIX的PIPE机制“的概要设方案
 查阅资料如下：
@@ -73,7 +73,7 @@ sfs_io_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, void *buf, off_t offset
 `load_icode`中大部分代码(包括：elf文件的解析；程序的各个段的内存申请和在`mm`中的标记；程序栈空间的申请和在`mm`中的标记；加载新页表；设定用于跳转到用户态的`trapframe`)可以从之前的lab中复制来。需要自己实现的主要是两部分：
 1. 从`fd`中读取文件数据
 
-与之前不同，这里文件的大小不是已知的，我翻阅了以下`file.h`，发现`file_fstat`可以提供相关信息：
+与之前不同，这里文件的大小不是已知的，我翻阅了一下`file.h`，发现`file_fstat`可以提供相关信息：
 ```c
     struct stat stat;
     file_fstat(fd, &stat);
@@ -150,8 +150,8 @@ _start:
 ### Q2. 给出设计实现基于”UNIX的硬链接和软链接机制“的概要设方案
 1. 硬链接
 
-让文件在硬盘中以`sfs_disk_entry`的形式存在，并在其中添加一个引用计数字段。经由`sfs_disk_entry::ino`可以找到它的实体(`sfs_disk_inode`)保存的位置
+一个硬链接只需要保存一个它指向的文件的inode编号。`sfs_disk_inode`中增添一个引用计数字段，创建这个文件时引用计数设为1，创建硬链接时需申请一个block来存放硬链接(这也许有点太浪费了，因为只需要一个整数而已，可以考虑直接把这个整数放在`sfs_disk_entry`里)，同时把它指向的文件inode的引用计数+1；删除文件和删除硬链接时，引用计数-1，引用计数为0时才能删除这个文件inode。
 
 2. 软链接
 
-在inode种类中添加软连接，其在硬盘上的形式就是`sfs_disk_entry`
+一个软链接保存一个它指向的文件的inode编号和一个是否有效的标记(也许可以用inode是否为0来表示是否有效)。`sfs_disk_inode`增添若干个字段，用于表示有哪些软链接指向它，这若干个字段可以仿照文件内容的存储方式，分为直接和间接的存储方式。当这个文件被删除时，需要将所有的软链接inode标记为无效。而软链接被删除时，需要从文件inode中移除自身指向它的信息。
