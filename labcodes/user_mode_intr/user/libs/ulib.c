@@ -86,6 +86,6 @@ __exec(const char *name, const char **argv) {
     return sys_exec(name, argc, argv);
 }
 
-int def_user_intr(void (*fn)()) {
-    return sys_def_user_intr(fn);
+int def_user_intr(int id, void (*fn)()) {
+    return sys_def_user_intr(id, fn);
 }

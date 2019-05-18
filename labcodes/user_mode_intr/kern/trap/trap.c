@@ -71,8 +71,8 @@ idt_init(void) {
     lidt(&idt_pd);
 }
 
-void do_def_user_intr(uint32_t fn) {
-    SETGATE(idt[253],1, GD_UTEXT, fn, DPL_USER);
+void do_def_user_intr(uint32_t id, uint32_t fn) {
+    SETGATE(idt[id], 0, GD_UTEXT, fn, DPL_USER);
 }
 
 static const char *

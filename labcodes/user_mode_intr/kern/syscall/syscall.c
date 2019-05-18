@@ -159,7 +159,7 @@ sys_dup(uint32_t arg[]) {
 
 static int 
 sys_def_user_intr(uint32_t arg[]) {
-    do_def_user_intr(arg[0]);
+    do_def_user_intr(arg[0], arg[1]);
     return 0;
 }
 

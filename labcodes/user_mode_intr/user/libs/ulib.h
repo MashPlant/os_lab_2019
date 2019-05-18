@@ -45,7 +45,7 @@ int __exec(const char *name, const char **argv);
 
 void lab6_set_priority(uint32_t priority); //only for lab6
 
-int def_user_intr(void (*fn)());
+int def_user_intr(int id, void (*fn)());
 
 #endif /* !__USER_LIBS_ULIB_H__ */
 

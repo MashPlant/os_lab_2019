@@ -144,6 +144,6 @@ sys_dup(int fd1, int fd2) {
     return syscall(SYS_dup, fd1, fd2);
 }
 
-int sys_def_user_intr(void (*fn)()) {
-    return syscall(SYS_def_user_intr, (int) fn);
+int sys_def_user_intr(int id, void (*fn)()) {
+    return syscall(SYS_def_user_intr, id, (int) fn);
 }

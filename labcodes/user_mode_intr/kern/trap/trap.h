@@ -85,7 +85,7 @@ void print_trapframe(struct trapframe *tf);
 void print_regs(struct pushregs *regs);
 bool trap_in_kernel(struct trapframe *tf);
 
-void do_def_user_intr(uint32_t fn);
+void do_def_user_intr(uint32_t id, uint32_t fn);
 
 #endif /* !__KERN_TRAP_TRAP_H__ */
 

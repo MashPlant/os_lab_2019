@@ -1,5 +1,4 @@
 file bin/kernel
 target remote :1234
-break proc.c:696
-break proc.c:698
+b vmm.c:393 if (error_code & 1)
 c
