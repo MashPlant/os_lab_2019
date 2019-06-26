@@ -1,4 +1,4 @@
 file bin/kernel
 target remote :1234
-b vmm.c:393 if (error_code & 1)
+b proc.c:92
 c

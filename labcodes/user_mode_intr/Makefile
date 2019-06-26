@@ -327,7 +327,7 @@ qemu-nox: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 monitor: $(UCOREIMG) $(SWAPING) $(SFSIMG)
 	$(V)$(QEMU) -monitor stdio $(QEMUOPTS) -serial null
 
-TERMINAL := gnome-terminal
+TERMINAL := konsole
 
 debug: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) -S -s -parallel stdio $(QEMUOPTS) -serial null &
